@@ -55,7 +55,7 @@ class VideoClipProperties(object):
         """Load the common properties using CV2"""
         cap = cv2.VideoCapture(self.video_path)
         self.frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        self.fps = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.fps = cap.get(cv2.CAP_PROP_FPS)
         self.duration = self.frame_count/self.fps 
         cap.release()
 
@@ -102,19 +102,30 @@ def extract_video(args):
     df = pd.read_csv(args.csv, sep="\t")
     tqdm.pandas()
     pandarallel.initialize(progress_bar=True)
-    result_cols = ["Extracted","Message","Message data"]
-    df[result_cols] = df.parallel_apply(extract_clip, args=(args,), axis=1, result_type="expand")
+    result_cols = ["EXTRACTED","MESSAGE","MESSAGE_DATA"]
+    # While parallel runs are generally faster, if an error occurs,
+    # message from parallel run is cryptic, making it difficult to find cause.
+    # If user specified --no-parallel then don't run in parallel
+    if args.no_parallel:
+        df[result_cols] = df.progress_apply(extract_clip, args=(args,), axis=1, 
+                            result_type="expand")
+    else:
+        df[result_cols] = df.parallel_apply(extract_clip, args=(args,), axis=1, 
+                            result_type="expand")
+
     
     # TODO: Get logger and send output to logger
-    print(f"Summary: {df.groupby('Message').size().to_string()}")
+    print(f"Summary: {df.groupby('MESSAGE').size().to_string()}")
 
     if args.sfx_extract:
         outfile = get_outfile(args.csv,args.sfx_extract)
-        df[df.Extracted].to_csv(outfile, sep="\t", index=False)
+        df[df.EXTRACTED].to_csv(outfile, sep="\t", index=False)
+        print(f"Extracts saved to {outfile}")
 
     if args.sfx_log:
         outfile = get_outfile(args.csv,args.sfx_log)
         df.to_csv(outfile, sep="\t", index=False)
+        print(f"Log saved to {outfile}")
 
     return df
 
@@ -172,7 +183,7 @@ def extract_clip(row, args):
     #Finally process the extract
     if result is None:
         #No errors were found to discard video creation.
-        outfile = os.path.join(args.out_folder,infile_base)
+        outfile = os.path.join(args.out_folder,row[args.video_out] + args.ext)
         if args.clip_type == "clip":
             with VideoFileClip(infile) as video:
                 newclip = video.subclip(row[args.video_start],row[args.video_end])
@@ -189,7 +200,10 @@ def extract_clip(row, args):
     if result is None:
         result = [True,
                 f"Extracted",
-                f"To file {outfile}"]
+                f"To file {outfile} "
+                f"Duration {out_video.duration:.2f}s "
+                f"Frames {out_video.frame_count} "
+                f"FPS {out_video.fps}"]
 
     return result
 
@@ -253,22 +267,24 @@ def parse_args(inline_options:List[str] = None,
     parser.add_argument("--max-words",  type=int,   default=1000,           help="Retain sentences containing less than max_words (default: %(default)s)")
     parser.add_argument("--min-frames", type=int,   default=2,              help="Filter out videos containing less than min_frames (default: %(default)s)")
 
-    # Less likely to change
-    parser.add_argument("--ext",        type=str,   default=".mp4",         help="Extension for input files (default: %(default)s)")
-    # Column Names
-    parser.add_argument("--video-in",   type=str,   default="VIDEO_NAME",   help="Field in in_file containing the input video file name (default: %(default)s)")
-    parser.add_argument("--video-out",  type=str,   default="SENTENCE_NAME",help="Field in in_file containing the output video file name (default: %(default)s)")
-    parser.add_argument("--video-start",type=str,   default="START_REALIGNED",        help="Field in in_file containing the clip start time (default: %(default)s)")
-    parser.add_argument("--video-end",  type=str,   default="END_REALIGNED",          help="Field in in_file containing the clip end time (default: %(default)s)")
-    parser.add_argument("--sentence",   type=str,   default="SENTENCE",     help="Field in in_file containing the sentence (default: %(default)s)")
-
     #Output naming
     parser.add_argument("--sfx-extract",type=nullable_string,  default="_extract",     help="Suffix to use for extracted only file (default: %(default)s. Specify blank to skip")
-    parser.add_argument("--sfx-log",    type=nullable_string,  default="_log",         help="Suffix to use for log file (default: %(default)s). Specify blank to skip")
+    parser.add_argument("--sfx-log",    type=nullable_string,  default="_extract_log",         help="Suffix to use for log file (default: %(default)s). Specify blank to skip")
 
     #Debug options
     parser.add_argument("--clip-type",choices=["ffmpeg","clip"],  default="ffmpeg",  help="Which extract method to use (default: %(default)s).")
     parser.add_argument("--filter", type=str, nargs="+", help="Optional list of videos to process. Filter applied on the video-in specified (default: None)")
+    parser.add_argument("--no-parallel", action="store_true", default=False,    help="Do not run in parallel")
+
+    # Less likely to change
+    parser.add_argument("--ext",        type=str,   default=".mp4",             help="Extension for input files (default: %(default)s)")
+    # Column Names
+    parser.add_argument("--video-in",   type=str,   default="VIDEO_NAME",       help="Field in in_file containing the input video file name (default: %(default)s)")
+    parser.add_argument("--video-out",  type=str,   default="SENTENCE_NAME",    help="Field in in_file containing the output video file name (default: %(default)s)")
+    parser.add_argument("--video-start",type=str,   default="START_REALIGNED",  help="Field in in_file containing the clip start time (default: %(default)s)")
+    parser.add_argument("--video-end",  type=str,   default="END_REALIGNED",    help="Field in in_file containing the clip end time (default: %(default)s)")
+    parser.add_argument("--sentence",   type=str,   default="SENTENCE",         help="Field in in_file containing the sentence (default: %(default)s)")
+
 
 
     if known is None:
