@@ -12,9 +12,9 @@ from utils import get_outfile
 from typing import List
 
 #%%
-def filter_signers(csv_file:str, pickle_file:str,
-                   csv_field:str="VIDEO_NAME",
-                   pickle_field:str = "name", pattern="-\d+-"):
+def filter_signers(csv_file:str, pickle_file:str, out_path=None,
+                   csv_field:str="VIDEO_NAME", pattern="-\d+-",
+                   pickle_field:str = "name"):
     """Wrapper around individual functions to split a pickle_file
 
     Parameters
@@ -23,7 +23,7 @@ def filter_signers(csv_file:str, pickle_file:str,
     pickle_file: 
     """
     signers = find_signers(csv_file, csv_field, pattern=pattern)
-    split_pickle(pickle_file=pickle_file, 
+    split_pickle(pickle_file=pickle_file, out_path=out_path,
                  filter=signers, field=pickle_field,
                  match_type = "pattern")
 
