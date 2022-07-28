@@ -15,6 +15,16 @@ def get_outfile(orgfile:str, suffix:str) -> str:
 
 
 #%%
+def get_files(in_path:str, in_pattern:str) -> List[str]:
+    """Gets files in in_path matching in_pattern - a thin wrapper around glob"""
+    if os.path.isdir(in_path):
+        files = glob(os.path.join(in_path,in_pattern))
+    elif os.path.isfile(in_path):
+        files = [in_path]
+    else:
+        raise FileNotFoundError(f"{in_path} is neither a file nor a folder")
+    return files
+#%%
 def get_device(use_cuda_ovr:bool = True) -> Tuple[torch.device, bool]:
     """Gets the torch device to use based on cuda availability and overrides
 
@@ -66,3 +76,8 @@ def set_path(paths:List[str] = ADD_LIB, baselevel:int =2) -> Path:
 
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative from current working directory
     return ROOT
+
+#%%
+def nullable_string(val:str):
+    """ Returns None is val is zero length. Useful for parsing command line args"""
+    return None if not val else val
