@@ -13,6 +13,9 @@ def get_outfile(orgfile:str, suffix:str) -> str:
     return os.path.join(os.path.dirname(orgfile),
                         os.path.basename(orgfile).replace(".",suffix + "."))
 
+def get_rep_folder(orgfile:str) -> str:
+    FILE = Path(orgfile).resolve()
+    return str(FILE.parents[0])
 
 #%%
 def get_files(in_path:str, in_pattern:str) -> List[str]:

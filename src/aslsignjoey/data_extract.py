@@ -24,21 +24,52 @@ Example CSV file based on the (HOW2SIGN)[https://how2sign.github.io/#download]
 
 All raw videos from which to extract clips should be in one common folder.
 
+Examples:
+--------
+1. Happy path command to extract validation videos of How2Sign dataset based 
+on realigned clips times.
+
+```
+python3 data_extract '../../data/raw/how2sign_realigned_val.csv' \
+                       '../../data/raw/val/' \
+                       '../../data/processed/val/' 
+```
+
+2. To extract only a sample frames for sentences containing less than ten words
+and having 3 or more frames, pass the --max-words and --min-frames.
+
+```
+python3 data_extract '../../data/raw/how2sign_realigned_val.csv' \
+                       '../../data/raw/val/' \
+                       '../../data/processed/val/' \
+                        --max-words 10 --min-frames 3
+```
+
+For help on all other parameters, see  
+```
+python3 data_extract --help
+```
+
+By default, extracted file information will be saved in `outfolder's` parent folder
+which can be used in the next step of `data_format` as input.
 
 """
 #%%
 import argparse
 import os
 import cv2 
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
-from moviepy.video.io.VideoFileClip import VideoFileClip
-
 from tqdm import tqdm
+from typing import List
 
 import pandas as pd
 from pandarallel import pandarallel
 
-from typing import List
+from aslutils import nullable_string, get_rep_folder, get_outfile
+
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+from moviepy.video.io.VideoFileClip import VideoFileClip
+
+
 
 #%%
 class VideoClipProperties(object):
@@ -67,7 +98,7 @@ class VideoClipProperties(object):
         """Defines the element names for the properties given by to_list"""
         return ["Frames","FPS","Duration"]
 #%%
-def extract_video(args):
+def extract_videos(args):
     """Extract videos from multiple files
 
     Extracts videos based on parameters specified in CSV file
@@ -83,12 +114,18 @@ def extract_video(args):
                        '--clip-type','clip'])
     df = extract_video(args)
     ```
-    will creates clips of `.mp4` files in `../../data/raw/val` that contain
+    will create clips of `.mp4` files in `../../data/raw/val` that contain
     3 or more frames, and less than 10 words based from the video file 
     specified in column VIDEO_NAME in the CSV file 
     `../../data/raw/how2sign_realigned_val.csv`.
 
-    See `data_video_extract.py --help` for more information on parameters
+    See `data_extract.py --help` for more information on parameters
+
+    Unless `--sfx-extract` is passed as empty, a csv file containing the data about
+    extracted files will saved in same folder as `csv` file with file name including the suffix.
+
+    Similarly, unless `--sfx-log` is passed as empty, a csv file include status 
+    of each record will be saved. 
 
     """
     assert os.path.isfile(args.csv), f"{args.csv} not found, or is not a file"
@@ -117,20 +154,34 @@ def extract_video(args):
     # TODO: Get logger and send output to logger
     print(f"Summary: {df.groupby('MESSAGE').size().to_string()}")
 
-    if args.sfx_extract:
-        outfile = get_outfile(args.csv,args.sfx_extract)
-        df[df.EXTRACTED].to_csv(outfile, sep="\t", index=False)
-        print(f"Extracts saved to {outfile}")
+    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
+    df[df.EXTRACTED].to_csv(outfile, sep="\t", index=False)
+    print(f"Extracts saved to {outfile}")
 
     if args.sfx_log:
-        outfile = get_outfile(args.csv,args.sfx_log)
-        df.to_csv(outfile, sep="\t", index=False)
-        print(f"Log saved to {outfile}")
+        logfile = get_outfile(outfile, args.sfx_log)
+        df.to_csv(logfile, sep="\t", index=False)
+        print(f"Log saved to {logfile}")
 
     return df
 
 #%%
-def extract_clip(row, args):
+def extract_clip(row, args) -> list:
+    """ Extracts video contents from a clip based on row defintion
+
+    Parameters:
+    -----------
+    row: Pandas DataFrame row containing the fields that describe clip elements
+    args: command line arguments specifying what to process
+
+    Return:
+    -------
+    list[bool, str, str] -> ['Extracted','Message','Message Data']
+    -   `Extracted` is True is video for the record was extracted.  
+    -   `Message` has the summary message about the row
+    -   `Message Data` contains further details about the row process. 
+        Especially useful for rows that did not extract.
+    """
     result = None
     props_arr = [0,0,0]
 
@@ -209,7 +260,18 @@ def extract_clip(row, args):
 
 
 #%%
-def check_words(word_count,max_words):
+def check_words(word_count:int ,max_words: int) -> list:
+    """ Utility function to check if sentence word_count is within the desired limit
+
+    Parameters
+    ----------
+    word_count : number of words in the sentence
+    max_words  : maximum words desired in the videos
+
+    Returns
+    -------
+    list[bool, str, str] -> ['Extracted','Message','Message Data'] 
+    """
     result = None
     if word_count > max_words:
         result = [False,
@@ -232,9 +294,6 @@ def get_outfile(orgfile, suffix):
 
 
 #%%
-def nullable_string(val):
-    return None if not val else val
-
 def parse_args(inline_options:List[str] = None, 
                known = False) -> argparse.Namespace:
     """Parse command line arguments
@@ -268,8 +327,7 @@ def parse_args(inline_options:List[str] = None,
     parser.add_argument("--min-frames", type=int,   default=2,              help="Filter out videos containing less than min_frames (default: %(default)s)")
 
     #Output naming
-    parser.add_argument("--sfx-extract",type=nullable_string,  default="_extract",     help="Suffix to use for extracted only file (default: %(default)s. Specify blank to skip")
-    parser.add_argument("--sfx-log",    type=nullable_string,  default="_extract_log",         help="Suffix to use for log file (default: %(default)s). Specify blank to skip")
+    parser.add_argument("--sfx-log",    type=nullable_string,  default="_log",         help="Suffix to use for log file (default: %(default)s). Specify blank to skip")
 
     #Debug options
     parser.add_argument("--clip-type",choices=["ffmpeg","clip"],  default="ffmpeg",  help="Which extract method to use (default: %(default)s).")
@@ -279,11 +337,11 @@ def parse_args(inline_options:List[str] = None,
     # Less likely to change
     parser.add_argument("--ext",        type=str,   default=".mp4",             help="Extension for input files (default: %(default)s)")
     # Column Names
-    parser.add_argument("--video-in",   type=str,   default="VIDEO_NAME",       help="Field in in_file containing the input video file name (default: %(default)s)")
-    parser.add_argument("--video-out",  type=str,   default="SENTENCE_NAME",    help="Field in in_file containing the output video file name (default: %(default)s)")
-    parser.add_argument("--video-start",type=str,   default="START_REALIGNED",  help="Field in in_file containing the clip start time (default: %(default)s)")
-    parser.add_argument("--video-end",  type=str,   default="END_REALIGNED",    help="Field in in_file containing the clip end time (default: %(default)s)")
-    parser.add_argument("--sentence",   type=str,   default="SENTENCE",         help="Field in in_file containing the sentence (default: %(default)s)")
+    parser.add_argument("--video-in",   type=str,   default="VIDEO_NAME",       help="Field in csv containing the input video file name (default: %(default)s)")
+    parser.add_argument("--video-out",  type=str,   default="SENTENCE_NAME",    help="Field in csv containing the output video file name (default: %(default)s)")
+    parser.add_argument("--video-start",type=str,   default="START_REALIGNED",  help="Field in csv containing the clip start time (default: %(default)s)")
+    parser.add_argument("--video-end",  type=str,   default="END_REALIGNED",    help="Field in csv containing the clip end time (default: %(default)s)")
+    parser.add_argument("--sentence",   type=str,   default="SENTENCE",         help="Field in csv containing the sentence (default: %(default)s)")
 
 
 
@@ -296,5 +354,5 @@ def parse_args(inline_options:List[str] = None,
 #%%
 if __name__ == "__main__":
     args = parse_args() 
-    extract_video(args)
+    extract_videos(args)
     

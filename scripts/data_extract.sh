@@ -1,9 +1,20 @@
 #!/bin/bash
-# Change these values as needed.  
-RAW="./data/raw"
-EXTRACT="./data/interim/extract"
+  
+if [ $# -ne 3 ]
+then
+   echo "Usage: $0 <indir> <outdir> <prefix>"
+   echo "       <indir> is starting directory for input videos e.g. ./data/h2s/raw"
+   echo "       <outdir> is starting directory for output videos e.g. ./data/h2s/interim/extract"
+   echo "       <prefix>  is csv file prefix" 
+   echo "                e.g. if csv files are how2sign_realigned_[train|val|test].csv then pass \"how2sign_realigned_\""
+   exit 1
+fi
+
+# Change these values as needed.
+RAW="$1"
+EXTRACT="$2"
+DATASET="$3"
 SUBDIRS=( "train" "val" "test" )
-DATASET="how2sign_realigned_"
 CSV=".csv"
 
 sudo chown -R $USER $PWD
