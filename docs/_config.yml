@@ -1,1 +1,3 @@
 theme: jekyll-theme-midnight
+title: MyVoice - Machine Translation for American Sign Language
+description: MyVoice is an American Sign Language (ASL) translation model that is aimed at automatically generating captions for short sentences.
