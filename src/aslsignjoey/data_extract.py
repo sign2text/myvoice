@@ -64,11 +64,12 @@ from typing import List
 import pandas as pd
 from pandarallel import pandarallel
 
-from aslutils import nullable_string, get_rep_folder, get_outfile
+from aslutils import nullable_string, get_rep_folder, get_outfilename
 
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
+RESULT_COLS = ["EXTRACTED","EXT_MESSAGE","EXT_MESSAGE_DATA"]
 
 
 #%%
@@ -139,27 +140,30 @@ def extract_videos(args) -> pd.DataFrame:
     df = pd.read_csv(args.csv, sep="\t")
     tqdm.pandas()
     pandarallel.initialize(progress_bar=True)
-    result_cols = ["EXTRACTED","MESSAGE","MESSAGE_DATA"]
     # While parallel runs are generally faster, if an error occurs,
     # message from parallel run is cryptic, making it difficult to find cause.
     # If user specified --no-parallel then don't run in parallel
     if args.no_parallel:
-        df[result_cols] = df.progress_apply(extract_clip, args=(args,), axis=1, 
+        df[RESULT_COLS] = df.progress_apply(extract_clip, args=(args,), axis=1, 
                             result_type="expand")
     else:
-        df[result_cols] = df.parallel_apply(extract_clip, args=(args,), axis=1, 
+        df[RESULT_COLS] = df.parallel_apply(extract_clip, args=(args,), axis=1, 
                             result_type="expand")
 
+    status_field, summ_field, detail_field = tuple(RESULT_COLS)
     
     # TODO: Get logger and send output to logger
-    print(f"Summary: {df.groupby('MESSAGE').size().to_string()}")
+    print(f"Summary: {df.groupby(summ_field).size().to_string()}")
 
-    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
-    df[df.EXTRACTED].to_csv(outfile, sep="\t", index=False)
+    outfile = get_outfilename(args.csv,
+                       out_folder = get_rep_folder(args.out_folder))
+
+#    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
+    df[df[status_field] == True].to_csv(outfile, sep="\t", index=False)
     print(f"Extracts saved to {outfile}")
 
     if args.sfx_log:
-        logfile = get_outfile(outfile, args.sfx_log)
+        logfile = get_outfilename(outfile, suffix=args.sfx_log)
         df.to_csv(logfile, sep="\t", index=False)
         print(f"Log saved to {logfile}")
 

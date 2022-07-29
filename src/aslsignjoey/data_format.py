@@ -42,7 +42,9 @@ from pandarallel import pandarallel
 
 from typing import List, Tuple
 
-from aslutils import get_outfile, get_rep_folder, nullable_string
+from aslutils import get_outfilename, get_rep_folder, nullable_string
+
+RESULT_COLS = ["FORMATTED","FMT_MESSAGE","FMT_MESSAGE_DATA"]
 
 #%%
 def format_videos(args: argparse.Namespace) -> pd.DataFrame:
@@ -65,14 +67,18 @@ def format_videos(args: argparse.Namespace) -> pd.DataFrame:
 
     
     # TODO: Get logger and send output to logger
-    print(f"Summary: {df.groupby('MESSAGE').size().to_string()}")
+    status_field, summ_field, detail_field = tuple(RESULT_COLS)
 
-    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
-    df[df.FORMATTED].to_csv(outfile, sep="\t", index=False)
+    print(f"Summary: {df.groupby(summ_field).size().to_string()}")
+
+    outfile = get_outfilename(args.csv,
+                  out_folder = get_rep_folder(args.out_folder))
+#    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
+    df[df[status_field] == True].to_csv(outfile, sep="\t", index=False)
     print(f"Formatted info saved to {outfile}")
 
     if args.sfx_log:
-        logfile = get_outfile(outfile, args.sfx_log)
+        logfile = get_outfilename(outfile,suffix=args.sfx_log)
         df.to_csv(logfile, sep="\t", index=False)
         print(f"Log saved to {logfile}")
 
@@ -133,8 +139,8 @@ def format_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
 
     Return:
     -------
-    list[bool, str, str] -> ['Extracted','Message','Message Data']
-    -   `Extracted` is True is video for the record was extracted.  
+    list[bool, str, str] -> ['Formatted','Message','Message Data']
+    -   `Formatted` is True is video for the record was extracted.  
     -   `Message` has the summary message about the row
     -   `Message Data` contains further details about the row process. 
         Especially useful for rows that did not extract.
@@ -229,8 +235,9 @@ def format_frame(frame, frame_size:Tuple[int,int]) :
     -------
     numpy.ndarray : frame
     """
+    oframe = frame
     oframe = crop_center_square(oframe) # cut center of frame
-    oframe = cv2.resize(frame, frame_size) # resize frame
+    oframe = cv2.resize(oframe, frame_size) # resize frame
     return oframe
 
 #%%

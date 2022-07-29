@@ -8,7 +8,7 @@ import pandas as pd
 import random
 import re
 import os
-from utils import get_outfile
+from utils import get_outfilename
 from typing import List
 
 #%%
@@ -27,6 +27,27 @@ def filter_signers(csv_file:str, pickle_file:str, out_path=None,
                  filter=signers, field=pickle_field,
                  match_type = "pattern")
 
+def split_pickle(pickle_file:str, filter:List[str], 
+                out_path:str=None, field:str="name", match_type:str="pattern"):
+    """Wrapper around pickle_filter to split files
+    
+    Splits the pickle_file into different files based on 
+    list of pattern matches in a given field.
+    Output files are automatically suffixed with the match pattern
+    """
+    assert os.path.isfile(pickle_file), f"File {pickle_file} not found, or is not a file"
+    if out_path:
+        os.makedirs(out_path,exist_ok=True)
+        out_dir = out_path
+    else:
+        out_dir = os.path.dirname(pickle_file)
+    fbase = os.path.basename(pickle_file)
+    for filt in filter:
+        out_file = get_outfilename(pickle_file, out_folder=out_dir, suffix=filt)
+        filter_pickle(pickle_file, out_file, 
+            filter=filt, 
+            field=field, 
+            match_type=match_type)
 
 def filter_pickle(pickle_file:str, out_file:str,
     filter:str, field:str="name", match_type:str="pattern"):
@@ -38,7 +59,7 @@ def filter_pickle(pickle_file:str, out_file:str,
     out_file   : path to store outfile. If path doesn't exist, it is created
     filter     : filter to apply
     field      : field to apply filter to
-    match_type : type of match. One of pattern, exact
+    match_type : type of match. One of [`pattern`, `exact`]
                  if pattern, it can match any regex pattern
                  if exact, whole field is matched.
     """
@@ -64,27 +85,6 @@ def filter_pickle(pickle_file:str, out_file:str,
 
     print(f"Output written to {out_file}")
 
-def split_pickle(pickle_file:str, filter:List[str], 
-                out_path:str=None, field:str="name", match_type:str="pattern"):
-    """Wrapper around pickle_filter to split files
-    
-    Splits the pickle_file into different files based on 
-    list of pattern matches in a given field.
-    Output files are automatically suffixed with the match pattern
-    """
-    assert os.path.isfile(pickle_file), f"File {pickle_file} not found, or is not a file"
-    if out_path:
-        os.makedirs(out_path,exist_ok=True)
-        out_dir = out_path
-    else:
-        out_dir = os.path.dirname(pickle_file)
-    fbase = os.path.basename(pickle_file)
-    for filt in filter:
-        out_file = get_outfile(os.path.join(out_dir, fbase), filt)
-        filter_pickle(pickle_file, out_file, 
-            filter=filt, 
-            field=field, 
-            match_type=match_type)
 
 def find_signers(csv_file:str,
         field='VIDEO_NAME', pattern="-\d+-") -> list:

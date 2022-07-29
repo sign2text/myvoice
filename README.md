@@ -52,7 +52,7 @@ For extracting all videos, use the bash script below. This script assumes defaul
 
 ```s
 cd myvoice
-bash scripts/data_extract.sh ./data/h2s/raw ./data/h2s/interim/ext how2sign_realigned_ | grep -viE 'join|oviepy'
+bash scripts/data_extract.sh ./data/h2s/raw ./data/h2s/interim/ext how2sign_realigned_gls_ | grep -viE 'join|oviepy'
 ``` 
 
 The above commands will extract information into the following structure
@@ -84,7 +84,7 @@ How2Sign datasets are recorded at 1280 x 720 resolution. This resolution is very
 
 ```s
 cd myvoice
-bash scripts/data_format.sh ./data/h2s/interim/ext ./data/h2s/interim/format how2sign_realigned_gls_
+bash scripts/data_format.sh ./data/h2s/interim/ext ./data/h2s/interim/fmt how2sign_realigned_gls_
 ``` 
 
 The above commands will extract information into the following structure
@@ -106,6 +106,35 @@ data
          |how2sign_realigned_gls_val.csv
 ```
 
+#### 4. Extract Features
+Extract features from formatted videos using the script below:  
+
+```s
+cd myvoice
+bash scripts/data_features.sh ./data/h2s/interim/fmt ./data/h2s/interim/ft how2sign_realigned_gls_
+``` 
+
+The above commands will create features and store them in the following structure
+```s
+#Output structure. Change parameters or scripts as needed. 
+data
+|-- h2s
+   |-- raw # Retained from input
+       |-- ...
+   |-- interim
+       |--ext  # Retained from extract
+         |-- ... 
+       |--fmt  # Retained from Format
+         |-- ...
+       |--ft
+         |-- test  # Contains .npy files
+         |-- train # Contains .npy files
+         |-- val   # Contains .npy files
+         |how2sign_realigned_gls_test.csv
+         |how2sign_realigned_gls_train.csv
+         |how2sign_realigned_gls_val.csv
+      
+```
 
 
 

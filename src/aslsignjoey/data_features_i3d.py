@@ -1,7 +1,18 @@
+"""I3D Feature Extractor
+
+Wrapper module around https://github.com/v-iashin/video_features to generate
+features from a video. Functions in this module allow video_features to be 
+extracted for single piece inference or to be included in a pipeline.
+
+`get_tensor` is the main function in this module.
+
+"""
 #%%
-from aslutils import set_path, get_device
+from aslutils import set_path, get_device, get_outfilename
+
 ROOT = set_path()
 
+import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 import torch
@@ -17,66 +28,21 @@ from typing import Union, Tuple, List
 extractor, model, class_head, device = None, None, None, None
 
 #%%
-def gen_tensors(indata:Union[str, List[str], pd.DataFrame],
-                   df_field:str = None, 
-                   tensor_field:str = None,
-                   output_dir:str = None,
-                   device:torch.device =None, 
-                   reload_model:bool =False,
-                   no_parallel:bool = True ) -> Union[Tuple[str,torch.Tensor], pd.DataFrame] :
-    """Retrieve tensors for one of more videos
-        
-    """
-    if type(indata) == pd.DataFrame:
-        assert df_field and tensor_field, \
-        f"Both df_field:{df_field} and tensor_field:{tensor_field} "
-        f"must be valid for a dataframe"
+def get_tensor(infile:str, outdir:str=None, device_ovr=None) -> Tuple[str,torch.Tensor]:
+    """Extracts I3D tensor from a `infile`
 
-    if device is None:
-        device, use_cuda = get_device()
+    Parameters
+    ----------
+    infile    : video file to extract features from
+    outdir    : Optional directory in which to save the output 
+                If specified, a numpy array is saved in outdir as infile.npy
+    device_ovr: Device to use. If None, determines device based on cuda availability
 
-    global extractor, model, class_head
-    if extractor is None or model is None or class_head is None or reload_model:
-        print("Loading extractor")
-        extractor, model, class_head = get_model(device)
+    Returns
+    -------
+    (file, tensor): Tuple containing output file name or None, and the tensor
+    """ 
 
-    result = None
-    if type(indata) == str:
-        result = get_tensor(indata,outdir,device)
-    elif type(indata) == list:
-        #TODO improve performance on list processing by co
-        sign_tensors = []
-        if no_parallel:
-            #Avoid the overhead of converting to a dataframe
-            for f in tqdm(indata):
-                sign_tensors.append(get_tensor(f,outdir,device))
-            result = (indata, sign_tensors)
-        else:
-            #Convert to a dataframe and parallelize to improve performance
-            df = pd.DataFrame({'files' : indata})
-            df = get_tensor_df(df,device,'files','tensor')
-            sign_tensors = df['tensor'].to_list()
-            result = (indata, sign_tensors)
-    elif type(indata) == pd.DataFrame:
-        result = get_tensor_df(indata,outdir,device,df_field, tensor_field,no_parallel)
-
-    return result
-
-def get_tensor_df(df:pd.DataFrame, outdir:str, device:torch.device = None,
-        df_field:str = None, tensor_field:str = None, no_parallel:bool=False) -> pd.DataFrame:
-    if no_parallel:
-        tqdm.pandas() 
-        df[tensor_field] = df.progress_apply(get_tensor_row,args=(outdir,device))
-    else:
-        pandarallel.initialize(progress_bar=True)
-        df[tensor_field] = df.parallel_apply(get_tensor_row,args=(outdir,device,))
-    return df
-
-
-def get_tensor_row(row:pd.Series, outdir:str, device:torch.device) -> torch.Tensor:
-    return get_tensor(row[infile], outdir, device)
-#%%
-def get_tensor(infile:str, outdir:str, device_ovr=None) -> torch.Tensor:
     assert os.path.isfile(infile), f"File {infile} not found or is not a file"
 
     global extractor, model, class_head, device
@@ -86,13 +52,14 @@ def get_tensor(infile:str, outdir:str, device_ovr=None) -> torch.Tensor:
     if device is None:
         device, use_cuda = get_device() if device_ovr is None else (device_ovr, False)
 
-
     features = extractor.extract(device, model, class_head, infile)
+    out_file = None
     if outdir:
+        out_file = get_outfilename(infile, out_folder=outdir,new_extn=".npy")
         if not os.path.exists(outdir):
             os.makedirs(outdir)
-        action_on_extraction(features, infile, outdir, on_extraction='save_numpy')
-    return torch.from_numpy(features['rgb'])
+        np.save(out_file, features['rgb'])        
+    return (out_file, torch.from_numpy(features['rgb']))
 
 #%%
 def get_model(device:torch.device = None,
@@ -129,3 +96,5 @@ def get_model(device:torch.device = None,
     model, class_head = extractor.load_model(device)
     return (extractor, model, class_head)
 
+
+# %%

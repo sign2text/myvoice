@@ -1,18 +1,72 @@
+"""Extract features for a dataset
+
+This script extracts features from video clips.
+The script has been written for processing How2Sign datasets,
+typically downloaded and extracted using `data_extract.py` 
+and formatted using `data_format.py`  
+However, this can be used with any data by changing the parameters.
+
+This script expects a CSV file containing the list of clips to extract features for. 
+Typically this file would have been generated as output of `data_format`
+
+Example CSV file based on the (HOW2SIGN)[https://how2sign.github.io/#download]
+ data is:  
+
+|Field        | Comment                |  
+|-------------|------------------------|  
+|VIDEO_ID     | Not relevant           |  
+|VIDEO_NAME	  | Not relevant |   
+|SENTENCE_ID  | Not relevant           |  
+|SENTENCE_NAME| Video file name. File with this name + .mp4 must exist in the input folder |
+|START        | Not relevant    |  
+|END          | Not relevant   |  
+|SENTENCE     | Not relevant |  
+
+
+
+All videos to be formatted should be in one common folder.
+
+`get_tensor` can be used to extract features from individual video. 
+This function doesn't rely on any command line argument, 
+allowing it to be used during inference as well.
+
+"""
 #%%
-from aslutils import nullable_string, get_device, set_path
-ROOT = set_path()
+import aslutils
+from aslutils import nullable_string 
+ROOT = aslutils.set_path()
+
 import argparse
-from typing import List
+import os
+import torch
+from typing import List, Tuple
+
+
 
 import pandas as pd
 from pandarallel import pandarallel
 from tqdm import tqdm
 
+from data_features_i3d import get_tensor as get_tensor_i3d
 
 device = None
-get_tensor_fn = None
 
+RESULT_COLS = ["FEATURES","FT_MESSAGE","FT_MESSAGE_DATA"]
+
+#%%
 def extract_features(args:argparse.Namespace) -> pd.DataFrame:
+    """Extract features based on command line arguments
+
+    See `data_features.py --help` for more information on arguments
+
+    pandas DataFrame containing three additional columns
+    ['FEATURES','FT_MESSAGE','FT_MESSAGE_DATA']
+    -   `Features` is True is video if the record had features extracted.  
+    -   `FT Message` has the summary message about the row
+    -   `FT Message Data` contains further details about the row process. 
+        Especially useful for rows that did not extract.
+
+    """
     assert os.path.isfile(args.csv), f"{args.csv} not found, or is not a file"
     assert os.path.isdir(args.in_folder), f"{args.in_folder} not found, or is not a folder"
     
@@ -25,15 +79,20 @@ def extract_features(args:argparse.Namespace) -> pd.DataFrame:
     # Delegate the work to child process that accepts a dataframe
     df = extract_features_df(df, args)
 
-    # TODO: Get logger and send output to logger
-    print(f"Summary: {df.groupby('MESSAGE').size().to_string()}")
+    status_field, summ_field, detail_field = tuple(RESULT_COLS)
 
-    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
-    df[df.FEATURES].to_csv(outfile, sep="\t", index=False)
+    # TODO: Get logger and send output to logger
+    print(f"Summary: {df.groupby(summ_field).size().to_string()}")
+
+    outfile = aslutils.get_outfilename(args.csv,
+                       out_folder = aslutils.get_rep_folder(args.out_folder))
+    #Save only the 
+    df[df[status_field] == True].to_csv(outfile, sep="\t", index=False)
     print(f"Formatted info saved to {outfile}")
 
     if args.sfx_log:
-        logfile = get_outfile(outfile, args.sfx_log)
+        logfile = aslutils.get_outfilename(outfile,suffix=args.sfx_log)
+#        logfile = aslutils.get_outfile(outfile, args.sfx_log)
         df.to_csv(logfile, sep="\t", index=False)
         print(f"Log saved to {logfile}")
 
@@ -41,7 +100,7 @@ def extract_features(args:argparse.Namespace) -> pd.DataFrame:
 
 #%%
 def extract_features_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFrame:
-    """Formats videos based on metadata in df and args.
+    """Extracts features for videos based on metadata in df and args.
 
     Performs parallel data processing using all the available cores. 
     To turn off parallel processing pass `--no-parallel` in the args.
@@ -50,7 +109,7 @@ def extract_features_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFram
     e.g. if the calling function already has a dataframe in `df` then
     ```
     import data_format
-    args = data_format.parse_args(["", "./data/h2s/interim/ext", "./data/h2s/interim/fmt"])
+    args = data_features.parse_args(["", "./data/h2s/interim/fmt", "./data/h2s/interim/ft"])
     df = data_format.format_videos_df(df, args)
     ```
 
@@ -61,31 +120,31 @@ def extract_features_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFram
 
     Return:
     -------
-    list[bool, str, str] -> ['Features','Message','Message Data']
+    pandas DataFrame containing three additional columns
+    ['FEATURES','FT_MESSAGE','FT_MESSAGE_DATA']
     -   `Features` is True is video if the record had features extracted.  
-    -   `Message` has the summary message about the row
-    -   `Message Data` contains further details about the row process. 
-        Especially useful for rows that did not format.
+    -   `FT Message` has the summary message about the row
+    -   `FT Message Data` contains further details about the row process. 
+        Especially useful for rows that did not extract.
 
     """
-    result_cols = ["FEATURES","MESSAGE","MESSAGE_DATA"]
 
     # While parallel runs are generally faster, if an error occurs,
     # message from parallel run is cryptic, making it difficult to find cause.
     # If user specified --no-parallel then don't run in parallel
     if args.no_parallel:
         tqdm.pandas() # This is only required if pandarallel errors out
-        df[result_cols] = df.progress_apply(extract_rowclip, args=(args,), axis=1, 
+        df[RESULT_COLS] = df.progress_apply(extract_rowclip, args=(args,), axis=1, 
                             result_type="expand")
     else:
         pandarallel.initialize(progress_bar=True)
-        df[result_cols] = df.parallel_apply(extract_rowclip, args=(args,), axis=1, 
+        df[RESULT_COLS] = df.parallel_apply(extract_rowclip, args=(args,), axis=1, 
                             result_type="expand")
     return df
 
 #%%
 def extract_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
-    """Formats video contents from a clip based on row defintion
+    """Extracts features from a video clip based on row defintion
 
     Parameters:
     -----------
@@ -94,7 +153,7 @@ def extract_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
 
     Return:
     -------
-    list[bool, str, str] -> ['Features','Message','Message Data']
+    list[bool, str, str] -> ['Features','FT_Message','FT_Message Data']
     -   `Features` is True is video for the record was extracted.  
     -   `Message` has the summary message about the row
     -   `Message Data` contains further details about the row process. 
@@ -121,18 +180,43 @@ def extract_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
     if result is None:
         #No errors were found to discard video creation.
         if device is None:
-            device, use_cuda = get_device(args.use_cuda)
+            device, use_cuda = aslutils.get_device(args.use_cuda)
 
-        outfile = os.path.join(args.out_folder,infile_base)
-        get_tensor(infile, outfile, device)
+        out_file, features = get_tensor(infile, args.out_folder, device, args.type)
+        if features is None or len(features) == 0:
+            result = [False,
+                    f"Feature Failed",
+                    f"Received empty features {features.shape}"]
+
 
     if result is None:
         result = [True,
                 f"Feature created",
-                f"To file {outfile}"]
+                f"To file {out_file}, Shape:{features.shape} "]
 
     return result
 
+#%%
+def get_tensor(infile, outdir, device, feature_type) -> Tuple[str, torch.Tensor]:
+    """
+    Parameters
+    ----------
+    infile    : video file to extract features from
+    outdir    : Optional directory in which to save the output 
+                If specified, a numpy array is saved in outdir as infile.npy
+    device_ovr: Device to use. If None, determines device based on cuda availability
+    feature_type: Type of features to extract. Currently supported types are: 
+    'i3d' - Extract using https://iashin.ai/video_features/models/i3d/ 
+
+    Returns
+    -------
+    (file, tensor): Tuple containing output file name or None, and the tensor
+    """    
+    features = None
+    if feature_type == "i3d":
+        out_file, features = get_tensor_i3d(infile, outdir,device_ovr=device)
+    return (out_file,features)
+    
 
 #%%
 def parse_args(inline_options:List[str] = None, 
@@ -161,7 +245,7 @@ def parse_args(inline_options:List[str] = None,
     # Required parameters
     parser.add_argument("csv",          type=str,   help="CSV file containing the extract details")
     parser.add_argument("in_folder",    type=str,   help="Folder containing the formatted files")
-    parser.add_argument("out_folder",   type=nullable_string,   default=None, help="Folder to write features to. If none, dataframe is returned with tensors (default: %(default)s)")
+    parser.add_argument("out_folder",   type=str,  help="Folder to write features to. If none, dataframe is returned with tensors (default: %(default)s)")
 
     # Less likely to change
     parser.add_argument("--type",       choices=["i3d","iv3"],  default="i3d", help="Type of features to extract (default: %(default)s)")
@@ -175,7 +259,7 @@ def parse_args(inline_options:List[str] = None,
     #Debug options
     parser.add_argument("--filter", type=str, nargs="+", help="Optional list of videos to process. Filter applied on the video-in specified (default: None)")
     parser.add_argument("--no-parallel", action="store_true", default=False,    help="Do not run in parallel")
-    parser.add_argument("--no-cuda", action="store_true", default=False, help="Turn of cuda processing even if available (default: %(default)s)")
+    parser.add_argument("--no-cuda", action="store_true", default=False, help="Turn off cuda processing even if available (default: %(default)s)")
 
     if known is None:
         args = parser.parse_known_args(inline_options)[0] if inline_options else parser.parse_known_args()[0]
@@ -184,12 +268,8 @@ def parse_args(inline_options:List[str] = None,
 
     args.use_cuda = not args.no_cuda
 
-    if args.type == "i3d":
-        from data_features_i3d import get_tensor
-    else:
-        raise NotImplementedError(f"Option {args.type} is not implemented")
     return args
 #%%
 if __name__ == "__main__":
     args = parse_args() 
-    format_videos(args)
+    extract_features(args)

@@ -12,7 +12,18 @@ def get_outfile(orgfile:str, suffix:str) -> str:
     """Appends suffix to the filename, while preserving extension correctly"""
     return os.path.join(os.path.dirname(orgfile),
                         os.path.basename(orgfile).replace(".",suffix + "."))
-
+#%%
+def get_outfilename(org_file:str, out_folder:str=None, new_extn:str=None, suffix:str=None) -> str:
+    in_file_split = os.path.splitext(os.path.basename(org_file))
+    in_dir = os.path.dirname(org_file)
+    out_base = in_file_split[0] + suffix if suffix else in_file_split[0]
+    out_ext = in_file_split[1]
+    if new_extn:
+        out_ext = new_extn if new_extn[0] == "." else "." + new_extn
+    out_dir = out_folder if out_folder else in_dir
+    return os.path.join(out_dir, out_base + out_ext)
+    
+#%%
 def get_rep_folder(orgfile:str) -> str:
     FILE = Path(orgfile).resolve()
     return str(FILE.parents[0])
