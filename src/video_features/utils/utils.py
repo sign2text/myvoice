@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 import pickle
 import subprocess
 from pathlib import Path
@@ -11,8 +12,11 @@ import torch
 import torch.nn.functional as F
 from omegaconf.listconfig import ListConfig
 
-IMAGENET_CLASS_PATH = './utils/IN_label_map.txt'
-KINETICS_CLASS_PATH = './utils/K400_label_map.txt'
+FILE = Path(__file__).resolve()
+FILE = Path(os.path.relpath(FILE, Path.cwd()))
+
+IMAGENET_CLASS_PATH = str(FILE / 'utils/IN_label_map.txt')
+KINETICS_CLASS_PATH = str(FILE / 'utils/K400_label_map.txt')
 
 
 def show_predictions_on_dataset(logits: torch.FloatTensor, dataset: str):

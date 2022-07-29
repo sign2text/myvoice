@@ -1,59 +1,21 @@
-"""Video Clip Formatter
-
-This script formats the video clips and prepares the data 
-for feature extraction.
-The script has been written for processing How2Sign datasets,
-typically downloaded and extracted using `data_extract.py`
-However, this can be used with any data by changing the parameters.
-
-This script expects a CSV file containing the list of clips to be formatted. 
-Typically this file would have been generated as output of `data_extract`
-
-Example CSV file based on the (HOW2SIGN)[https://how2sign.github.io/#download]
- data is:  
-
-|Field        | Comment                |  
-|-------------|------------------------|  
-|VIDEO_ID     | Not relevant           |  
-|VIDEO_NAME	  | Not relevant |   
-|SENTENCE_ID  | Not relevant           |  
-|SENTENCE_NAME| Video file name. File with this name + .mp4 must exist in the input folder |
-|START        | Not relevant    |  
-|END          | Not relevant   |  
-|SENTENCE     | Not relevant |  
-
-
-
-All videos to be formatted should be in one common folder.
-
-`format_file` can be used to format individual file. 
-This function doesn't rely on any command line argument, 
-allowing it to be used during inference as well.
-
-"""
 #%%
+from aslutils import nullable_string, get_device, set_path
+ROOT = set_path()
 import argparse
-import os
-import cv2 
-from tqdm import tqdm
+from typing import List
 
 import pandas as pd
 from pandarallel import pandarallel
+from tqdm import tqdm
 
-from typing import List, Tuple
 
-from aslutils import get_outfile, get_rep_folder, nullable_string
+device = None
+get_tensor_fn = None
 
-#%%
-def format_videos(args: argparse.Namespace) -> pd.DataFrame:
-    """Format video for feature extraction.
-
-    See `data_format.py --help` for arguments used
-
-    """
+def extract_features(args:argparse.Namespace) -> pd.DataFrame:
     assert os.path.isfile(args.csv), f"{args.csv} not found, or is not a file"
     assert os.path.isdir(args.in_folder), f"{args.in_folder} not found, or is not a folder"
-
+    
     if args.ext[0] != ".":
         args.ext = "." + args.ext  
 
@@ -61,14 +23,13 @@ def format_videos(args: argparse.Namespace) -> pd.DataFrame:
 
     df = pd.read_csv(args.csv, sep="\t")
     # Delegate the work to child process that accepts a dataframe
-    df = format_videos_df(df, args)
+    df = extract_features_df(df, args)
 
-    
     # TODO: Get logger and send output to logger
     print(f"Summary: {df.groupby('MESSAGE').size().to_string()}")
 
     outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
-    df[df.FORMATTED].to_csv(outfile, sep="\t", index=False)
+    df[df.FEATURES].to_csv(outfile, sep="\t", index=False)
     print(f"Formatted info saved to {outfile}")
 
     if args.sfx_log:
@@ -79,7 +40,7 @@ def format_videos(args: argparse.Namespace) -> pd.DataFrame:
     return df
 
 #%%
-def format_videos_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFrame:
+def extract_features_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFrame:
     """Formats videos based on metadata in df and args.
 
     Performs parallel data processing using all the available cores. 
@@ -100,30 +61,30 @@ def format_videos_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFrame:
 
     Return:
     -------
-    list[bool, str, str] -> ['Formatted','Message','Message Data']
-    -   `Formatted` is True is video for the record was formatted.  
+    list[bool, str, str] -> ['Features','Message','Message Data']
+    -   `Features` is True is video if the record had features extracted.  
     -   `Message` has the summary message about the row
     -   `Message Data` contains further details about the row process. 
         Especially useful for rows that did not format.
 
     """
-    result_cols = ["FORMATTED","MESSAGE","MESSAGE_DATA"]
+    result_cols = ["FEATURES","MESSAGE","MESSAGE_DATA"]
 
     # While parallel runs are generally faster, if an error occurs,
     # message from parallel run is cryptic, making it difficult to find cause.
     # If user specified --no-parallel then don't run in parallel
     if args.no_parallel:
         tqdm.pandas() # This is only required if pandarallel errors out
-        df[result_cols] = df.progress_apply(format_rowclip, args=(args,), axis=1, 
+        df[result_cols] = df.progress_apply(extract_rowclip, args=(args,), axis=1, 
                             result_type="expand")
     else:
         pandarallel.initialize(progress_bar=True)
-        df[result_cols] = df.parallel_apply(format_rowclip, args=(args,), axis=1, 
+        df[result_cols] = df.parallel_apply(extract_rowclip, args=(args,), axis=1, 
                             result_type="expand")
     return df
 
 #%%
-def format_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
+def extract_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
     """Formats video contents from a clip based on row defintion
 
     Parameters:
@@ -133,13 +94,14 @@ def format_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
 
     Return:
     -------
-    list[bool, str, str] -> ['Extracted','Message','Message Data']
-    -   `Extracted` is True is video for the record was extracted.  
+    list[bool, str, str] -> ['Features','Message','Message Data']
+    -   `Features` is True is video for the record was extracted.  
     -   `Message` has the summary message about the row
     -   `Message Data` contains further details about the row process. 
         Especially useful for rows that did not extract.
     """
     result = None
+    global device 
 
     infile_base = row[args.video_in]+args.ext
     infile = os.path.join(args.in_folder,infile_base)
@@ -158,89 +120,18 @@ def format_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
     #Finally process the extract
     if result is None:
         #No errors were found to discard video creation.
+        if device is None:
+            device, use_cuda = get_device(args.use_cuda)
 
         outfile = os.path.join(args.out_folder,infile_base)
-        format_video(infile, outfile, fps=args.fps, frame_size=args.frame_size)
+        get_tensor(infile, outfile, device)
 
     if result is None:
         result = [True,
-                f"Formatted",
+                f"Feature created",
                 f"To file {outfile}"]
 
     return result
-
-#%%
-def format_video(infile:str, outfile:str, 
-                fps:int=0, frame_size:Tuple[int,int]=(224,224)) -> list:
-    """Formats a given video clip
-
-    This function can be imported into other modules making it convenient 
-    for single inference methods
-
-    Parameters
-    ----------
-    infile    : location of input video file
-    outfile   : file to write output to
-    fps       : frames per second for output. If 0, uses infiles frames per second
-    frame_size: (width, height ).
-
-    Returns
-    -------
-    list[bool, str, str] -> ['Extracted','Message','Message Data']
-    -   `Extracted` is True is video for the record was extracted.  
-    -   `Message` has the summary message about the row
-    -   `Message Data` contains further details about the row process. 
-    """
-    result = None
-    cap = cv2.VideoCapture(infile)
-    if fps == 0:
-        fps = cap.get(cv2.CAP_PROP_FPS)
-
-    writer = cv2.VideoWriter(outfile, cv2.VideoWriter_fourcc(*'mp4v'), 
-                                fps, frame_size)
-    frames = []
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frame = format_frame(frame, frame_size)
-            writer.write(frame) # save frame into video file
-    except Exception as e:
-        result = [False,"Failed", str(e)]
-        
-    finally:
-        cap.release()
-        writer.release()
-    
-    return result
-            
-
-#%%
-def format_frame(frame, frame_size:Tuple[int,int]) :
-    """Formats a single frame for feature extraction
-
-    Parameters
-    ----------
-    frame: numpy.ndarray of a single frame from video
-    frame_size: (width, height)
-
-    Returns
-    -------
-    numpy.ndarray : frame
-    """
-    oframe = crop_center_square(oframe) # cut center of frame
-    oframe = cv2.resize(frame, frame_size) # resize frame
-    return oframe
-
-#%%
-def crop_center_square(frame):
-
-    y, x = frame.shape[0:2]
-    min_dim = min(y, x)
-    start_x = (x // 2) - (min_dim // 2)
-    start_y = (y // 2) - (min_dim // 2)
-    return frame[start_y : start_y + min_dim, start_x : start_x + min_dim]
 
 
 #%%
@@ -264,19 +155,16 @@ def parse_args(inline_options:List[str] = None,
     parse_args() - for parsing command line options
     parse_args(['./data/raw/train.csv','./data/processed/extract/train','./data/processed/formatted/train'])
                  - the above will default all options
-    data_format.py --help -- displays help with all parameters and defaults 
+    data_features.py --help -- displays help with all parameters and defaults 
     """
-    parser = argparse.ArgumentParser("Video Format")
+    parser = argparse.ArgumentParser("Feature Extract")
     # Required parameters
     parser.add_argument("csv",          type=str,   help="CSV file containing the extract details")
-    parser.add_argument("in_folder",    type=str,   help="Folder containing the extracted files")
-    parser.add_argument("out_folder",   type=str,   help="Folder to write formated files to")
-
-    # Normally changeable parameters
-    parser.add_argument("--frame-size",     type=int,   nargs=2, default=[224,224], help="Width Height specification for new video (default: %(default)s)")
-    parser.add_argument("--fps",        type=int,   default=0,                  help="Feature per second for new video (default: %(default)s). Zero means use source FPS")
+    parser.add_argument("in_folder",    type=str,   help="Folder containing the formatted files")
+    parser.add_argument("out_folder",   type=nullable_string,   default=None, help="Folder to write features to. If none, dataframe is returned with tensors (default: %(default)s)")
 
     # Less likely to change
+    parser.add_argument("--type",       choices=["i3d","iv3"],  default="i3d", help="Type of features to extract (default: %(default)s)")
     parser.add_argument("--ext",        type=str,   default=".mp4",         help="Extension for input files (default: %(default)s)")
     # Column Names
     parser.add_argument("--video-in",   type=str,   default="SENTENCE_NAME",   help="Field in in_file containing the input video file name (default: %(default)s)")
@@ -287,16 +175,21 @@ def parse_args(inline_options:List[str] = None,
     #Debug options
     parser.add_argument("--filter", type=str, nargs="+", help="Optional list of videos to process. Filter applied on the video-in specified (default: None)")
     parser.add_argument("--no-parallel", action="store_true", default=False,    help="Do not run in parallel")
+    parser.add_argument("--no-cuda", action="store_true", default=False, help="Turn of cuda processing even if available (default: %(default)s)")
 
     if known is None:
         args = parser.parse_known_args(inline_options)[0] if inline_options else parser.parse_known_args()[0]
     else:
         args = parser.parse_args(inline_options) if inline_options else parser.parse_args()
-    args.frame_size = tuple(args.frame_size)
-    return args
 
+    args.use_cuda = not args.no_cuda
+
+    if args.type == "i3d":
+        from data_features_i3d import get_tensor
+    else:
+        raise NotImplementedError(f"Option {args.type} is not implemented")
+    return args
 #%%
 if __name__ == "__main__":
     args = parse_args() 
     format_videos(args)
-    

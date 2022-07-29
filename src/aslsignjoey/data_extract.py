@@ -98,7 +98,7 @@ class VideoClipProperties(object):
         """Defines the element names for the properties given by to_list"""
         return ["Frames","FPS","Duration"]
 #%%
-def extract_videos(args):
+def extract_videos(args) -> pd.DataFrame:
     """Extract videos from multiple files
 
     Extracts videos based on parameters specified in CSV file

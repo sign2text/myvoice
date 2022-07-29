@@ -15,7 +15,7 @@ from tqdm import tqdm
 from utils.utils import (action_on_extraction, form_list_from_user_input,
                          reencode_video_with_diff_fps)
 
-FILE = Path(__file__).resolve
+FILE = Path(__file__).resolve()
 FILE = Path(os.path.relpath(FILE, Path.cwd()))
 
 RAFT_MODEL_PATH = {

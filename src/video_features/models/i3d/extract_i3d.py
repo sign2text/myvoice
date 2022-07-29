@@ -18,13 +18,19 @@ from utils.utils import (action_on_extraction, form_list_from_user_input,
                          reencode_video_with_diff_fps,
                          show_predictions_on_dataset)
 
-FILE = Path(__file__).resolve
-FILE = Path(os.path.relpath(FILE, Path.cwd()))
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[2]
 
-PWC_MODEL_PATH = str(FILE /'models/pwc/checkpoints/pwc_net_sintel.pt')
-RAFT_MODEL_PATH = str(FILE / 'models/raft/checkpoints/raft-sintel.pth')
-I3D_RGB_PATH = str(FILE / 'models/i3d/checkpoints/i3d_rgb.pt')
-I3D_FLOW_PATH = str(FILE / 'models/i3d/checkpoints/i3d_flow.pt')
+#ROOT = Path(os.path.relpath(ROOT, Path.cwd()))
+
+PWC_MODEL_PATH = str(ROOT /'models/pwc/checkpoints/pwc_net_sintel.pt')
+RAFT_MODEL_PATH = str(ROOT / 'models/raft/checkpoints/raft-sintel.pth')
+I3D_RGB_PATH = str(ROOT / 'models/i3d/checkpoints/i3d_rgb.pt')
+I3D_FLOW_PATH = str(ROOT / 'models/i3d/checkpoints/i3d_flow.pt')
+
+print(RAFT_MODEL_PATH)
+assert os.path.isfile(RAFT_MODEL_PATH), f"RAFT_MODEL_PATH:{RAFT_MODEL_PATH} is not file"
+
 PRE_CENTRAL_CROP_MIN_SIDE_SIZE = 256
 CENTRAL_CROP_MIN_SIDE_SIZE = 224
 DEFAULT_I3D_STEP_SIZE = 64
