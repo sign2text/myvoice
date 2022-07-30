@@ -1,157 +1,60 @@
-# myvoice
+# MyVoice: Machine Translation for American Sign Language
+
+This repo contains the code for ASL training and evaluation, including inference on Edge device. Contributions and achievments from this code are available in [TODO Link to our paper](http://sign2text.github.io/myvoice) 
+
+The repo includes code for:  
+1. Data preparation and corrections for [How2Sign dataset](https://how2sign.github.io/) 
+2. Training and evaluation using the [Sign Language Transformers: Joint End-to-end Sign Language Recognition and Translation](https://github.com/neccam/slt)
+3. Running inference on an edge device for one or more videos and creating subtitles.
+4. Exploratory data analysis for How2Sign dataset.
+
+This repo also includes [augmented How2Sign metadata dataset](./data/h2s/how2sign_realigned_gls.zip) to included glosses and curated sentences.  
+
+## Requirements
+* [Optional] Create a conda or python virtual environment.
+
+* Install required packages using the `requirements.txt` file.
+
+* The following packages are included in this distribution. Please read and understand the licensing from each before modifying or distributing the packages
+*   Sign Language Transformers: Joint End-to-end Sign Language Recognition and Translation. [License terms](./src/slt/LICENSE). [Github repo](https://github.com/neccam/slt)  
+*   Video Features [License terms](./src/video_features/LICENSE). [Github repo](https://github.com/v-iashin/video_features)
+
 
 ## Data Preparation
 
-### **How2Sign Dataset**
-Each dataset publishes videos in different formats. This section describes the process for getting How2Sign dataset ready for training.  
+### How2Sign Dataset
+[How2Sign Data preparation](./how2sign_dataprep.md) Please follow the detailed instructions provided here.
 
-How2Sign datasets are published at https://how2sign.github.io/ Since these files are very large, please download the files using a browser of your choice. **Note**: while `wget` might work for smaller files like `val` and `test`, it fails while downloading 290GB Raw Files data due to Google Drive restrictions. Hence browser download is highly recommended. 
+## Training & Evaluation
+SLT code is included into this repo to ease training and enable inference. To run training, modify the config files as needed. Sample config files and the best performing config files are included in the repo.
 
-This document assumes that videos files are downloaded and extracted to `data/h2s/raw` folders. This document also assumes that all `csv` files are kept in `data/raw` folder.  
+Training includes evaluation against the test data. So a separate evaluation is not needed, unless you want to test with different beam sizes.
 
-```s
-#Assumed input folder structure. Change parameters or scripts as needed. 
-data
-|-- h2s
-   |-- raw  
-       |-- test
-       |-- train
-       |-- val
-       |how2sign_realigned_test.csv
-       |how2sign_realigned_train.csv
-       |how2sign_realigned_val.csv
-```
-#### 1. Download data 
+### Configs included
+|Config                      |  Description  |
+|----------------------------|---------------|
+|h2s_gls_i3d_l20_lr01_e5.yaml|Sample config that runs training for 5 epochs for sentences less than 20 characters|  
+|h2s_gls_i3d_all_cosine.yaml |Config file training on all data using Cosine LR scheduler|
 
-1. Download the following data files from How2Sign and extract the images to the corresponding folders:
-![How2Sign Download 1](docs/assets/images/how2sign_dwnl_1.png)  
-
-2. This repo includes [How2Sign English Translation (manually re-aligned) with generated glosses (3MB)](data/h2s/how2sign_realigned_gls.zip). 
-
-This curated dataset contains the glosses generated for each sentence using Achraf Othman's excellent tutorial [Tutorial 3](https://achrafothman.net/site/deployment-of-a-statistical-machine-translation-english-american-sign-language/). 
-
-Extract this zip into `raw` folder.  
-
-```s
+### Execution
+You can use the below command to submit the job in background
+```sh
 cd myvoice
-unzip data/h2s/how2sign_realigned_gls.zip -d data/h2s/raw
+nohup python3 src/slt/signjoey train configs/h2s_gls_i3d_l50_lr01.yaml > logs/h2s_gls_l20_lr01.log 2>&1 &
 ```
 
-Alternatively, you may download the files from How2Sign site and place them in the `raw` folder. With this approach, you would need to generate glosses from other models.
- 
-![How2Sign Download 2](docs/assets/images/how2sign_dwnl_2.png).
-
-
-The rest of the steps assume that you are using the `how2sign_realigned_gls.zip` file that includes glosses.
-
-#### 2. Extract sentence clips
-How2Sign raw videos contain full length videos containing multiple sentences. The below scripts extract individual sentences based on the clip start and end definition in `how2sign_realigned_gls.zip` files. 
-
-For extracting all videos, use the bash script below. This script assumes default locations mentioned above. Change as necessary.  
-**Note**: MoviePy is used for extracting video clips. It produces debug statements that cannot be turned off. The command below excludes the debug statements from `moviepy`  
-
-```s
+### Evaluation
+Training performs evaluation as well. You may use the command below to run evaluation only runs do determine best beam sizes
+```sh
 cd myvoice
-bash scripts/data_extract.sh ./data/h2s/raw ./data/h2s/interim/ext how2sign_realigned_gls_ | grep -viE 'join|oviepy'
-``` 
-
-The above commands will extract information into the following structure
-```s
-#Output structure. Change parameters or scripts as needed. 
-data
-|-- h2s
-   |-- raw # Retained from input
-       |-- ...
-   |-- interim
-       |--ext  
-         |-- test
-         |-- train
-         |-- val
-         |how2sign_realigned_gls_test.csv
-         |how2sign_realigned_gls_train.csv
-         |how2sign_realigned_gls_val.csv
+nohup python3 src/slt/signjoey test configs/h2s_gls_i3d_l50_lr01.yaml > logs/h2s_gls_l20_lr01_eval.log 2>&1 &
 ```
 
-For using extraction script with other datasets, please learn about the available parameters using the command below, and adjust as needed
-
-```s
+### Monitoring
+To see testing progress, we found the below command very useful
+```sh
 cd myvoice
-python3 src/aslsignjoey/data_extract.py --help
-```
-
-#### 3. Format videos
-How2Sign datasets are recorded at 1280 x 720 resolution. This resolution is very high for Machine Learning. Most models require a 224 x 224 pixel input video. Secondly, the information in the video is primarily in the center of the video. To enable input videos for feature extraction use the following script:  
-
-```s
-cd myvoice
-bash scripts/data_format.sh ./data/h2s/interim/ext ./data/h2s/interim/fmt how2sign_realigned_gls_
-``` 
-
-The above commands will extract information into the following structure
-```s
-#Output structure. Change parameters or scripts as needed. 
-data
-|-- h2s
-   |-- raw # Retained from input
-       |-- ...
-   |-- interim
-       |--ext  # Retained from extract
-         |-- ... 
-       |--fmt  
-         |-- test
-         |-- train
-         |-- val
-         |how2sign_realigned_gls_test.csv
-         |how2sign_realigned_gls_train.csv
-         |how2sign_realigned_gls_val.csv
-```
-
-#### 4. Extract Features
-Extract features from formatted videos using the script below:  
-
-```s
-cd myvoice
-bash scripts/data_features.sh ./data/h2s/interim/fmt ./data/h2s/interim/ft how2sign_realigned_gls_
-``` 
-
-The above commands will create features and store them in the following structure
-```s
-#Output structure. Change parameters or scripts as needed. 
-data
-|-- h2s
-   |-- raw # Retained from input
-       |-- ...
-   |-- interim
-       |--ext  # Retained from extract
-         |-- ... 
-       |--fmt  # Retained from Format
-         |-- ...
-       |--ft
-         |-- test  # Contains .npy files
-         |-- train # Contains .npy files
-         |-- val   # Contains .npy files
-         |how2sign_realigned_gls_test.csv
-         |how2sign_realigned_gls_train.csv
-         |how2sign_realigned_gls_val.csv
-      
-```
-
-#### 5. Prepare Data
-Create pickle files containing for training the `slt` model
-```s
-cd myvoice
-bash scripts/data_prep.sh ./data/h2s/interim/ft ./data/h2s how2sign_realigned_gls_ h2s_realigned_gls_i3d_all
-``` 
-
-The above command will create the following files
-```s
-#Output structure. Change parameters or scripts as needed. 
-data
-|-- h2s
-    |how2sign_realigned_gls_test.pkl
-    |how2sign_realigned_gls_train.pkl
-    |how2sign_realigned_gls_val.pkl
-      
+grep -E '\[Epoch|BLEU-4|DEV|TEST|WER' logs/h2s_gls_l20_lr01.log && date
 ```
 
 
@@ -166,14 +69,28 @@ The source code hardcodes the path to model checkpoints and hence doesn't work t
 In this code, the following scripts are modified to use relative paths to identify checkpoint files
 
 Files modified:
-models/i3d/extract_i3d.py  
-models/pwc/extract_pwc.py
-models/raft/extract_raft.py
-utils/utils.py 
+src/video_features/models/i3d/extract_i3d.py  
+src/video_features/models/pwc/extract_pwc.py
+src/video_features/models/raft/extract_raft.py
+src/video_features/utils/utils.py 
 
 
 **Note:** Only `extract_i3d.py` is used in `aslsignjoey`. Other files are changed to ensure conformance with `extract_i3d.py`.  
 
+### SLT Joint End-To-End Sign Language Recognition and Translation
+https://github.com/neccam/slt is used for training and evaluation. However, this code runs only on `torch==1.4.0` and `torchtext==0.5.0`. For the code to run on Jetson NX Xavier device that does not run 1.4, the following scripts were modified to use legacy code if newer versions are installed.
+
+Files modified:
+src/slt/signjoey/data.py
+src/slt/signjoey/dataset.py
+src/slt/signjoey/helpers.py
+src/slt/signjoey/model.py
+src/slt/signjoey/prediction.py
+src/slt/signjoey/search.py 
+src/slt/signjoey/training.py 
+src/slt/signjoey/vocabulary.py 
+
+Additionally, src/slt/signjoey/__main__.py is changed to paths so that the script can be run from `myvoice` and process inference.
 
 
 
