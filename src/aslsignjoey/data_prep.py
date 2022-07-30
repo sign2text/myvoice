@@ -7,7 +7,7 @@ Required / positional Parameters
 --------------------------------
 csv       : CSV file containing records to process
 in_folder : Folder containing the numpy arrays typically generated from data_features.py
-out_folder: Folder to write the results
+out_file  : Path and filename to write output to
 
 Output
 ------
@@ -65,12 +65,12 @@ def prepare_data(args):
             failed_data.append(d)
     success_file, failed_file = None, None
     if len(success_data) > 0:
-        success_file = get_outfilename(args.csv,args.out_folder,new_extn='.pkl')
+        success_file = get_outfilename(args.out_file,new_extn='.pkl')
         with (gzip.open(success_file,"wb")) as fp:
             pickle.dump(success_data,fp)
 
     if len(failed_data) > 0:
-        failed_file = get_outfilename(args.csv,args.out_folder,new_extn='.csv', suffix=args.sfx_failed)
+        failed_file = get_outfilename(args.out_file,new_extn='.csv', suffix=args.sfx_failed)
         fd = pd.DataFrame(failed_data)
         fd.to_csv(failed_file, index=False, sep="\t")
 
@@ -178,7 +178,7 @@ def parse_args(inline_options:List[str] = None,
     # Required parameters
     parser.add_argument("csv",          type=str,   help="CSV file containing the extract details")
     parser.add_argument("in_folder",    type=str,   help="Folder containing the extracted files")
-    parser.add_argument("out_folder",   type=str,   help="Folder to write formated files to")
+    parser.add_argument("out_file",     type=str,   help="File to write successful records to")
 
 
     # Less likely to change
