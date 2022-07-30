@@ -71,6 +71,9 @@ def format_videos(args: argparse.Namespace) -> pd.DataFrame:
 
     print(f"Summary: {df.groupby(summ_field).size().to_string()}")
 
+    error_cols = [args.video_in, summ_field,detail_field]
+    print(df.loc[df[status_field] == False,error_cols])
+    
     outfile = get_outfilename(args.csv,
                   out_folder = get_rep_folder(args.out_folder))
 #    outfile = os.path.join(get_rep_folder(args.out_folder),os.path.basename(args.csv))
@@ -113,18 +116,17 @@ def format_videos_df(df:pd.DataFrame, args:argparse.Namespace) -> pd.DataFrame:
         Especially useful for rows that did not format.
 
     """
-    result_cols = ["FORMATTED","MESSAGE","MESSAGE_DATA"]
 
     # While parallel runs are generally faster, if an error occurs,
     # message from parallel run is cryptic, making it difficult to find cause.
     # If user specified --no-parallel then don't run in parallel
     if args.no_parallel:
         tqdm.pandas() # This is only required if pandarallel errors out
-        df[result_cols] = df.progress_apply(format_rowclip, args=(args,), axis=1, 
+        df[RESULT_COLS] = df.progress_apply(format_rowclip, args=(args,), axis=1, 
                             result_type="expand")
     else:
         pandarallel.initialize(progress_bar=True)
-        df[result_cols] = df.parallel_apply(format_rowclip, args=(args,), axis=1, 
+        df[RESULT_COLS] = df.parallel_apply(format_rowclip, args=(args,), axis=1, 
                             result_type="expand")
     return df
 
