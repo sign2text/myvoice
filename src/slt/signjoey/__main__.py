@@ -12,10 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 for p in PATHS:
     if str(ROOT / p) not in sys.path:
-        print(f"added {ROOT / p}")
         sys.path.append(str(ROOT / p))  
-
-print(ROOT,"\n",sys.path)
 
 import sys
 from signjoey.training import train
