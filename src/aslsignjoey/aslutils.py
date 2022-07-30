@@ -8,10 +8,10 @@ import torch
 
 ADD_LIB = ['src','src/slt','src/video_features']
 #%%
-def get_outfile(orgfile:str, suffix:str) -> str:
-    """Appends suffix to the filename, while preserving extension correctly"""
-    return os.path.join(os.path.dirname(orgfile),
-                        os.path.basename(orgfile).replace(".",suffix + "."))
+# def get_outfile(orgfile:str, suffix:str) -> str:
+#     """Appends suffix to the filename, while preserving extension correctly"""
+#     return os.path.join(os.path.dirname(orgfile),
+#                         os.path.basename(orgfile).replace(".",suffix + "."))
 #%%
 def get_outfilename(org_file:str, out_folder:str=None, new_extn:str=None, suffix:str=None) -> str:
     in_file_split = os.path.splitext(os.path.basename(org_file))

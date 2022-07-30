@@ -140,7 +140,7 @@ data
 Create pickle files containing for training the `slt` model
 ```s
 cd myvoice
-bash scripts/data_prep.sh ./data/h2s/interim/ft ./data/h2s how2sign_realigned_gls_
+bash scripts/data_prep.sh ./data/h2s/interim/ft ./data/h2s how2sign_realigned_gls_ h2s_realigned_gls_i3d_all
 ``` 
 
 The above command will create the following files
