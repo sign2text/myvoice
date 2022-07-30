@@ -3,8 +3,9 @@
 if [ $# -ne 3 ]
 then
    echo "Usage: $0 <indir> <outdir> <prefix>"
-   echo "       <indir> Directory to process e.g. ./data/h2s/interim/ext"
-   echo "       <outdir>  folder to write formatted files to e.g. ./data/h2s/interim/fmt"
+   echo "       <indir> Directory to process e.g. ./data/h2s/interim/ft"
+   echo "       <outdir>  folder to write pickel to e.g. ./data/h2s "
+s   echo "                All pickle files are written to this folder "
    echo "       <prefix>  is csv file prefix" 
    echo "                e.g. if csv files are how2sign_realigned_gls_[train|val|test].csv then pass \"how2sign_realigned_gls_\""
    exit 1
@@ -27,7 +28,7 @@ fi
 for d in "${SUBDIRS[@]}"; do
     file="${IN}/${DATASET}${d}${CSV}"
     indir="${IN}/${d}"
-    outdir="${OUT}/${d}"
+    outdir="${OUT}"
     if [ ! -f $file ]
     then
        echo "**WARN**: File $file not found. Skipped..."
@@ -35,6 +36,6 @@ for d in "${SUBDIRS[@]}"; do
     then
        echo "**WARN**: Folder $indir not found. Skipped..."    
     else
-       python3 src/aslsignjoey/data_format.py "${file}" "${indir}" "${outdir}"
+       python3 src/aslsignjoey/data_prep.py "${file}" "${indir}" "${outdir}"
     fi
 done

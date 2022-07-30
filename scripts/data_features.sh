@@ -5,6 +5,7 @@ then
    echo "Usage: $0 <indir> <outdir> <prefix>"
    echo "       <indir> Directory to process e.g. ./data/h2s/interim/fmt"
    echo "       <outdir>  folder to write formatted files to e.g. ./data/h2s/interim/ft"
+   echo"                 Files are written to sub-folders under this folder"
    echo "       <prefix>  is csv file prefix" 
    echo "                e.g. if csv files are how2sign_realigned_gls_[train|val|test].csv then pass \"how2sign_realigned_gls_\""
    exit 1

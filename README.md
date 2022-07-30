@@ -136,6 +136,23 @@ data
       
 ```
 
+#### 5. Prepare Data
+Create pickle files containing for training the `slt` model
+```s
+cd myvoice
+bash scripts/data_prep.sh ./data/h2s/interim/ft ./data/h2s how2sign_realigned_gls_
+``` 
+
+The above command will create the following files
+```s
+#Output structure. Change parameters or scripts as needed. 
+data
+|-- h2s
+    |how2sign_realigned_gls_test.pkl
+    |how2sign_realigned_gls_train.pkl
+    |how2sign_realigned_gls_val.pkl
+      
+```
 
 
 ## Imported Libraries
