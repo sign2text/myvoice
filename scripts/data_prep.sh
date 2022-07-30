@@ -17,7 +17,7 @@ IN="$1"
 OUT="$2"
 DATASET="$3"
 OUTF="$4"
-SUBDIRS=( "train" "val" "test" )
+SUBDIRS=( "train" "dev" "test" )
 CSV=".csv"
 
 sudo chown -R $USER $PWD
