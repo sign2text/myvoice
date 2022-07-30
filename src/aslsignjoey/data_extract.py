@@ -88,7 +88,7 @@ class VideoClipProperties(object):
         cap = cv2.VideoCapture(self.video_path)
         self.frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.fps = cap.get(cv2.CAP_PROP_FPS)
-        self.duration = self.frame_count/self.fps 
+        self.duration = self.frame_count/self.fps if self.fps > 0 else 0
         cap.release()
 
     def to_list(self):
@@ -138,22 +138,25 @@ def extract_videos(args) -> pd.DataFrame:
     os.makedirs(args.out_folder, exist_ok=True)
 
     df = pd.read_csv(args.csv, sep="\t")
-    tqdm.pandas()
-    pandarallel.initialize(progress_bar=True)
     # While parallel runs are generally faster, if an error occurs,
     # message from parallel run is cryptic, making it difficult to find cause.
     # If user specified --no-parallel then don't run in parallel
     if args.no_parallel:
+        tqdm.pandas()
         df[RESULT_COLS] = df.progress_apply(extract_clip, args=(args,), axis=1, 
                             result_type="expand")
     else:
+        pandarallel.initialize(progress_bar=True)
         df[RESULT_COLS] = df.parallel_apply(extract_clip, args=(args,), axis=1, 
                             result_type="expand")
 
     status_field, summ_field, detail_field = tuple(RESULT_COLS)
     
     # TODO: Get logger and send output to logger
-    print(f"Summary: {df.groupby(summ_field).size().to_string()}")
+    print(f"Summary: {df.groupby(summ_field).size().to_string()}\n")
+
+    error_cols = [args.video_in, summ_field,detail_field]
+    print(df.loc[df[status_field] == False,error_cols])
 
     outfile = get_outfilename(args.csv,
                        out_folder = get_rep_folder(args.out_folder))
