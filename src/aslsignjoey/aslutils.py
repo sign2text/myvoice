@@ -3,8 +3,11 @@ import os, sys
 from glob import glob
 from pathlib import Path
 from typing import List, Tuple
+import yaml
+import logging 
 
 import torch
+
 
 ADD_LIB = ['src','src/slt','src/video_features']
 #%%
@@ -95,3 +98,38 @@ def set_path(paths:List[str] = ADD_LIB, baselevel:int =2) -> Path:
 def nullable_string(val:str):
     """ Returns None is val is zero length. Useful for parsing command line args"""
     return None if not val else val
+
+#%%
+def get_logger(log_file:str = None,verbose:bool=True) -> logging.Logger:
+    """
+    Create a logger for generic purposes. Adapted from slt/signjoey/helpers.py
+
+    :param model_dir: path to logging directory
+    :param log_file: path to logging file
+    :param verbose:  include debug statements
+    :return: logger object
+    """
+    logger = logging.getLogger(__name__)
+    if not logger.handlers:
+        if verbose:
+            FORMAT = "%(asctime)s %(levelname)-8s [%(module)s:%(funcName)s:%(lineno)d] %(message)s"  
+        else:
+            FORMAT = "%(asctime)s %(levelname)-8s %(message)s"
+        formatter = logging.Formatter(FORMAT)
+
+        if log_file is None:  logging.basicConfig(format=FORMAT)
+
+        loglevel = logging.DEBUG if verbose else logging.INFO
+        logger.setLevel(loglevel)
+        if log_file:
+            fh = logging.FileHandler(log_file)
+            logger.addHandler(fh)
+            fh.setFormatter(formatter)
+        logger.info("Hello! Logger Created ")
+        return logger
+# %%
+def load_config(cfg_file):
+    """Loads the cfg_file and optionally collapses levels if combine_dicts""" 
+    with open(cfg_file, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    return cfg

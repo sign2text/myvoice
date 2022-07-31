@@ -50,12 +50,38 @@ cd myvoice
 nohup python3 src/slt/signjoey test configs/h2s_gls_i3d_l50_lr01.yaml > logs/h2s_gls_l20_lr01_eval.log 2>&1 &
 ```
 
-### Monitoring
-To see testing progress, we found the below command very useful
+## Inference
+If the best performance was obtained using `wlasl_gls.yaml` config, and you 
+want to obtain translation for video in `data/infer_in/61916.mp4`, you can run the following
+
+1. To run inference and get translated text on the same device where training was run, you can run
+
 ```sh
 cd myvoice
-grep -E '\[Epoch|BLEU-4|DEV|TEST|WER' logs/h2s_gls_l20_lr01.log && date
+python3 translate configs/wlasl_gls.yaml data/infer_in/61916.mp4
 ```
+   To create a video file with translated text shown as captions and place file in data/infer_out folder, run
+```sh
+cd myvoice
+python3 config configs/wlasl_gls.yaml data/infer_in/61916.mp4 data/infer_out
+```
+Omit the `infer_out` folder to get caption file as `data/infer_in/61916_caption.mp4`
+
+2.  To run inference on an edge device, copy the following files, and then run inference as in 1. above. For the below commands, we use, `training-mc` to refer to training machine and `edge-mc` is Edge machine. `myvoice` is cloned on both training and the edge device in home folder. Best performing config was `configs/wlasl_gls.yaml` and model was written to `models/wlasl` folder. 
+The below commands assume that you have `ssh` setup between `edge-mc` and `training-mc`. If not, follow any other process to get the referenced files to the `edge-mc`.  
+
+```sh
+# On edge-mc
+cd myvoice
+scp training-mc:~/myvoice/configs/wlasl_gls.yaml configs/
+mkdir models/wlasl
+scp training-mc:~/myvoice/models/wlasl/best.ckpt configs/wlasl/
+scp training-mc:~/myvoice/models/wlasl/*.vocab configs/wlasl/
+```
+
+`best.ckpt` is a symbolic link created during training to point to the best checkpoint.
+
+
 
 
 ## Imported Libraries

@@ -197,7 +197,7 @@ def extract_rowclip(row:pd.Series, args:argparse.Namespace) -> list:
     return result
 
 #%%
-def get_tensor(infile, outdir, device, feature_type) -> Tuple[str, torch.Tensor]:
+def get_tensor(infile:str, outdir:str=None, device:torch.device=None, feature_type:str="i3d") -> Tuple[str, torch.Tensor]:
     """
     Parameters
     ----------
