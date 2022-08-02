@@ -6,7 +6,6 @@ The repo includes code for:
 1. Data preparation and corrections for [How2Sign dataset](https://how2sign.github.io/) 
 2. Training and evaluation using the [Sign Language Transformers: Joint End-to-end Sign Language Recognition and Translation](https://github.com/neccam/slt)
 3. Running inference on an edge device for one or more videos and creating subtitles.
-4. Exploratory data analysis for How2Sign dataset.
 
 This repo also includes [augmented How2Sign metadata dataset](./data/h2s/how2sign_realigned_gls.zip) to included glosses and curated sentences.  
 

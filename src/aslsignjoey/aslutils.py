@@ -100,7 +100,7 @@ def nullable_string(val:str):
     return None if not val else val
 
 #%%
-def get_logger(log_file:str = None,verbose:bool=True) -> logging.Logger:
+def get_logger(log_file:str = None,verbose:bool=True, append:bool=False) -> logging.Logger:
     """
     Create a logger for generic purposes. Adapted from slt/signjoey/helpers.py
 
@@ -109,24 +109,35 @@ def get_logger(log_file:str = None,verbose:bool=True) -> logging.Logger:
     :param verbose:  include debug statements
     :return: logger object
     """
+
+    """Set up logging to file and console."""
     logger = logging.getLogger(__name__)
-    if not logger.handlers:
-        if verbose:
-            FORMAT = "%(asctime)s %(levelname)-8s [%(module)s:%(funcName)s:%(lineno)d] %(message)s"  
+    if verbose:
+        FORMAT = "%(asctime)s %(levelname)-8s [%(module)s:%(funcName)s:%(lineno)d] %(message)s"  
+    else:
+        FORMAT = "%(asctime)s %(levelname)-8s %(message)s"
+    loglevel = logging.DEBUG if verbose else logging.INFO
+    logger.setLevel(loglevel)
+
+    formatter = logging.Formatter(FORMAT)
+    if log_file is not None:
+        if append:
+            filemode_val = 'a'
         else:
-            FORMAT = "%(asctime)s %(levelname)-8s %(message)s"
-        formatter = logging.Formatter(FORMAT)
+            filemode_val = 'w'
+        fh_handler = logging.FileHandler(filename=log_file,mode=filemode_val)
+        fh_handler.setLevel(loglevel)
+        fh_handler.setFormatter(formatter)
+        logger.addHandler(fh_handler)
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(loglevel)
+    formatter = logging.Formatter(FORMAT)
+    console.setFormatter(formatter)
 
-        if log_file is None:  logging.basicConfig(format=FORMAT)
+    logger.addHandler(console)
 
-        loglevel = logging.DEBUG if verbose else logging.INFO
-        logger.setLevel(loglevel)
-        if log_file:
-            fh = logging.FileHandler(log_file)
-            logger.addHandler(fh)
-            fh.setFormatter(formatter)
-        logger.info("Hello! Logger Created ")
-        return logger
+    return logger
 # %%
 def load_config(cfg_file):
     """Loads the cfg_file and optionally collapses levels if combine_dicts""" 

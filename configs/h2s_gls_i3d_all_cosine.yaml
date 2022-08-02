@@ -1,17 +1,17 @@
 name: how2sign
 data:
-    data_path: ./data/
+    data_path: ../../data/
     version: phoenix_2014_trans
     sgn: sign
     txt: text
     gls: gloss
-    train: h2s/h2s_glosses_i3d_all_train.pkl
-    dev: h2s/h2s_glosses_i3d_all_dev.pkl
-    test: h2s/h2s_glosses_i3d_all_test.pkl
+    train: how2sign/How2Sign_train_dataset_glosses_i3d_alldata.pkl
+    dev: how2sign/How2Sign_dev_dataset_glosses_i3d_alldata.pkl
+    test: how2sign/How2Sign_test_dataset_glosses_i3d_alldata.pkl
     feature_size: 1024
     level: word
     txt_lowercase: true
-    max_sent_length: 1000
+    max_sent_length: 500
     random_train_subset: -1
     random_dev_subset: -1
 testing:
@@ -50,15 +50,15 @@ training:
     reset_scheduler: false
     reset_optimizer: false
     random_seed: 42
-    model_dir: "./models/h2s_gls_i3d_all_cosine"
+    model_dir: "../../models/h2s_gls_i3d_all_cosine"
     recognition_loss_weight: 1.0
     translation_loss_weight: 1.0
     eval_metric: bleu
     optimizer: adam
     learning_rate: 0.001
-    batch_size: 32
+    batch_size: 16
     num_valid_log: 5
-    epochs: 20
+    epochs: 500
     early_stopping_metric: eval_metric
     batch_type: sentence
     translation_normalization: batch

@@ -27,9 +27,11 @@ import aslutils
 ROOT = aslutils.set_path()
 #%%
 import argparse
-import yaml
+import os
 from pathlib import Path
 from pprint import pprint, pformat
+
+import yaml
 
 import torch
 
@@ -315,12 +317,13 @@ def parse_args(inline_options = None, known=False):
     parser.add_argument('--output',type=str, default=None, 
                  help="File to write output to. If empty and caption is chosen,"
                       " caption file written as _caption")
-    parser.add_argument('-v','--verbose', action='store_true')
+    parser.add_argument('-v','--verbose', action='store_true', default=False)
 
     if known is None:
         args = parser.parse_known_args(inline_options)[0] if inline_options else parser.parse_known_args()[0]
     else:
         args = parser.parse_args(inline_options) if inline_options else parser.parse_args()
+    print(f"Verbose is: {args.verbose}")
     return args
 
 #%%
@@ -328,7 +331,8 @@ if __name__ == "__main__":
     #Required when running in interactive session. 
     # Should be changed to False before running in batch scripts, otherwise parameters specified with spelling errors may just be ignored
     args = parse_args() 
-    logger = get_logger(args.verbose)
+    logger = aslutils.get_logger(verbose=args.verbose)
+    print(f"logger is {logger}, loglevel is {logger.level}")
     if args.mode == "translate":
         translate(args)
     elif args.mode == "caption":
