@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Data folder
+# Based on https://stackoverflow.com/questions/5533050/gitignore-exclude-folder-but-include-specific-subfolder
+data/*
+!data/h2s/
+
+data/h2s/*
+!/data/h2s/*.zip

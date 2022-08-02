@@ -1,0 +1,5 @@
+theme: jekyll-theme-midnight
+github:
+  is_project_page: false
+title: MyVoice
+description: MyVoice is an American Sign Language (ASL) translation model that is aimed at automatically generating captions for short sentences.
