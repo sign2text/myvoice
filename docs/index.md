@@ -14,7 +14,7 @@ During the recent pandemic, the deaf and hard of hearing (DHH) often found thems
 In the last couple of decades, researchers in the computer vision field have focused more on Sign Language Recognition (SLR) than in Sign Language Translation (SLT). SLR seeks to recognize a sequence of signs but neglects the underlying grammatical and linguistic structures of sign language that differ from spoken language. On the other hand, the SLT goal is to generate spoken language translations from sign language videos, taking into account the different word orders and grammar.
 
 ## Impact
-According to the World Health Organization, over 5\% of the worlds population (430 million people) have a "disabling" hearing loss. And that number is expected to increase to 700 million by 2050.
+According to the World Health Organization, over 5 percent of the worlds population (430 million people) have a "disabling" hearing loss. And that number is expected to increase to 700 million by 2050.
 
 The National Center for Health Statistics estimates 28 million Americans have some degree of hearing loss. About 2 million of these 28 million people are classified as deaf (they can’t hear every day sounds or speech even with a hearing aid). American Sign Language (ASL) is the natural language of around 500,000 deaf people in the US and Canada and it is used in 20 other countries.
 
