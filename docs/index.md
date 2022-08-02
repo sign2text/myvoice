@@ -23,9 +23,9 @@ Translation models for ASL have the potential to change the way Deaf and Hard-of
 ## How it Works
 The MyVoice model receives a video of a person performing American Sign Language and generates captions.
 
-
-https://user-images.githubusercontent.com/51392903/182279411-14acd9a6-5d27-4ab9-84d3-dc535957779e.mp4
-
+<video width=480 height=320 controls>
+<source src="https://user-images.githubusercontent.com/51392903/182279411-14acd9a6-5d27-4ab9-84d3-dc535957779e.mp4" type="video/mp4"/>
+</video>
 
 ## More Information
 - [Presentation](https://docs.google.com/presentation/d/1ZyM6s0DXosi76Y4ecgRQ9BmD7nDfxC11pti3_gr1YG4/edit#slide=id.g140009fd7eb_0_0)
