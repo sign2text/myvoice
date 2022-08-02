@@ -24,6 +24,12 @@ This repo also includes [augmented How2Sign metadata dataset](./data/h2s/how2sig
 ### How2Sign Dataset
 [How2Sign Data preparation](./how2sign_dataprep.md) Please follow the detailed instructions provided here.
 
+### WLASL Dataset
+1. Download and preprocess the WLASL dataset using instructions from https://dxli94.github.io/WLASL/
+2. Move the videos folder to `data/wlasl/raw`
+3. Since these data already clipped to correct words, start with step 3 described in  [How2Sign Data preparation](./how2sign_dataprep.md) to create the format the videos and extract features. Change the folder names as needed.
+
+
 ## Training & Evaluation
 SLT code is included into this repo to ease training and enable inference. To run training, modify the config files as needed. Sample config files and the best performing config files are included in the repo.
 
@@ -57,12 +63,12 @@ want to obtain translation for video in `data/infer_in/61916.mp4`, you can run t
 
 ```sh
 cd myvoice
-python3 translate configs/wlasl_gls.yaml data/infer_in/61916.mp4
+python3 src/aslsignjoey/predict.py translate configs/wlasl_gls.yaml data/infer_in/61916.mp4
 ```
    To create a video file with translated text shown as captions and place file in data/infer_out folder, run
 ```sh
 cd myvoice
-python3 config configs/wlasl_gls.yaml data/infer_in/61916.mp4 data/infer_out
+python3 src/aslsignjoey/predict.py config configs/wlasl_gls.yaml data/infer_in/61916.mp4 data/infer_out
 ```
 Omit the `infer_out` folder to get caption file as `data/infer_in/61916_caption.mp4`
 
@@ -80,8 +86,22 @@ scp training-mc:~/myvoice/models/wlasl/*.vocab configs/wlasl/
 
 `best.ckpt` is a symbolic link created during training to point to the best checkpoint.
 
+The clips for the below video were generated using the following commands
+```sh
+cd myvoice
+# my
+python3 src/aslsignjoey/predict.py config configs/wlasl_gls.yaml data/wlasl/raw/37475.mp4 data/infer_out
+# sign language
+python3 src/aslsignjoey/predict.py config configs/wlasl_gls.yaml data/wlasl/raw/51662.mp4 data/infer_out
+# voice
+python3 src/aslsignjoey/predict.py config configs/wlasl_gls.yaml data/wlasl/raw/61916.mp4 data/infer_out
+# to
+python3 src/aslsignjoey/predict.py config configs/wlasl_gls.yaml data/wlasl/raw/58724.mp4 data/infer_out
+# text
+python3 src/aslsignjoey/predict.py config configs/wlasl_gls.yaml data/wlasl/raw/57584.mp4 data/infer_out
+```
 
-
+https://user-images.githubusercontent.com/51392903/182279411-14acd9a6-5d27-4ab9-84d3-dc535957779e.mp4
 
 ## Imported Libraries
 We reference and use the following libraries. In order for these libraries to be included into the process pipelines or current versions, we had to make the following modifications.
