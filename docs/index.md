@@ -28,6 +28,6 @@ The MyVoice model receives a video of a person performing American Sign Language
 </video>
 
 ## More Information
-- [Presentation](https://docs.google.com/presentation/d/1ZyM6s0DXosi76Y4ecgRQ9BmD7nDfxC11pti3_gr1YG4/edit#slide=id.g140009fd7eb_0_0)
+- [Presentation](https://docs.google.com/presentation/d/1ZyM6s0DXosi76Y4ecgRQ9BmD7nDfxC11pti3_gr1YG4/view#slide=id.g140009fd7eb_0_0)
 - [Research Paper](https://github.com/sign2text/myvoice/blob/main/docs/paper/myvoice_ml4asl.pdf)
 
